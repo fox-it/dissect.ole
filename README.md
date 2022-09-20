@@ -4,6 +4,16 @@ A Dissect module implementing a parser for the Object Linking & Embedding (OLE) 
 editors on Windows operating systems. For more information, please see [the
 documentation](https://dissect.readthedocs.io/en/latest/projects/dissect.ole).
 
+## Installation
+
+`dissect.ole` is available on [PyPI](https://pypi.org/project/dissect.ole/).
+
+```bash
+pip install dissect.ole
+```
+
+This module is also automatically installed if you install the `dissect` package.
+
 ## Build and test instructions
 
 This project uses `tox` to build source and wheel distributions. Run the following command from the root folder to build
