@@ -1,6 +1,5 @@
 from dissect import cstruct
 
-
 ole_def = """
 typedef short   OFFSET;
 typedef ULONG   SECT;
