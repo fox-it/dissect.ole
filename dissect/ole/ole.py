@@ -1,8 +1,8 @@
-from dissect.util.ts import wintimestamp
 from dissect.util.stream import AlignedStream
+from dissect.util.ts import wintimestamp
 
-from dissect.ole.exceptions import InvalidFileError, NotFoundError, Error
-from dissect.ole.c_ole import c_ole, SIGNATURE, SIGNATURE_BETA, DECOLOR, STGTY
+from dissect.ole.c_ole import DECOLOR, SIGNATURE, SIGNATURE_BETA, STGTY, c_ole
+from dissect.ole.exceptions import Error, InvalidFileError, NotFoundError
 
 
 class OLE:
