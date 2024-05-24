@@ -1,4 +1,4 @@
-from dissect import cstruct
+from dissect.cstruct import cstruct
 
 ole_def = """
 typedef short   OFFSET;
@@ -81,8 +81,7 @@ struct StructuredStorageDirectoryEntry {    // [offset from start in bytes, leng
     DFPROPTYPE  _dptPropType;               // [07CH,02] Reserved for future use. Must be zero.
 };
 """
-c_ole = cstruct.cstruct()
-c_ole.load(ole_def)
+c_ole = cstruct().load(ole_def)
 
 SIGNATURE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 SIGNATURE_BETA = b"\x0e\x11\xfc\x0d\xd0\xcf\x11\xe0"
