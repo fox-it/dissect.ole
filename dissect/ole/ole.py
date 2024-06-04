@@ -28,7 +28,6 @@ class OLE:
         self._difatcache = {}
         self._chaincache = {}
         self._minichaincache = {}
-        self._dirlist = {}
 
         minifat_buf = self.chain(self.header._sectMiniFatStart).open().read()
         self._minifat = c_ole.uint32[len(minifat_buf) // 4](minifat_buf)
@@ -38,21 +37,24 @@ class OLE:
         self.root = self.directory(0)
         self.ministream = self.root.open()
 
-    def get(self, name):
-        dirlist = self.listdir()
-        try:
-            return dirlist[name]
-        except KeyError:
-            return NotFoundError(name)
+    def get(self, path, root=None):
+        root = root or self.root
 
-    def listdir(self):
-        if not self._dirlist:
-            for entry in self.root.walk():
-                self._dirlist[entry.name] = entry
+        search_path = path.replace("\\", "/")
+        node = root
 
-        return self._dirlist
+        for part in search_path.split("/"):
+            if not part:
+                continue
 
-    dirlist = listdir
+            for child in node.walk():
+                if child.name == part:
+                    node = child
+                    break
+            else:
+                raise NotFoundError(path)
+
+        return node
 
     def directory(self, sid):
         try:
@@ -148,29 +150,35 @@ class DirectoryEntry:
         else:
             self.chain = ole.chain(self.start, self.size)
 
+        self._dirlist = {}
+
     def __repr__(self):
         return "<DirectoryEntry sid={} name={} type={} size=0x{:x}>".format(self.sid, self.name, self.type, self.size)
 
     def open(self):
         return self.chain.open()
 
+    def listdir(self):
+        if not self._dirlist:
+            for entry in self.walk():
+                self._dirlist[entry.name] = entry
+
+        return self._dirlist
+
     def walk(self):
         if self.has_left_sibling:
             yield self.left_sibling
-            for child in self.left_sibling.walk():
-                yield child
+            yield from self.left_sibling.walk()
 
         if self.has_child:
             yield self.child
 
         if self.has_right_sibling:
             yield self.right_sibling
-            for child in self.right_sibling.walk():
-                yield child
+            yield from self.right_sibling.walk()
 
         if self.has_child:
-            for child in self.child.walk():
-                yield child
+            yield from self.child.walk()
 
     @property
     def child(self):
