@@ -1,12 +1,19 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, BinaryIO
+
 from dissect.util.stream import AlignedStream
 from dissect.util.ts import wintimestamp
 
 from dissect.ole.c_ole import DECOLOR, SIGNATURE, SIGNATURE_BETA, STGTY, c_ole
 from dissect.ole.exceptions import Error, InvalidFileError, NotFoundError
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 
 class OLE:
-    def __init__(self, fh):
+    def __init__(self, fh: BinaryIO):
         self.fh = fh
         self.header = c_ole.StructuredStorageHeader(fh)
 
@@ -37,7 +44,7 @@ class OLE:
         self.root = self.directory(0)
         self.ministream = self.root.open()
 
-    def get(self, path, root=None):
+    def get(self, path: str, root: DirectoryEntry | None = None) -> DirectoryEntry:
         root = root or self.root
 
         search_path = path.replace("\\", "/")
@@ -56,7 +63,7 @@ class OLE:
 
         return node
 
-    def directory(self, sid):
+    def directory(self, sid: int) -> DirectoryEntry:
         try:
             return self._dircache[sid]
         except KeyError:
@@ -64,7 +71,7 @@ class OLE:
             self._dircache[sid] = entry
             return entry
 
-    def fat(self, sect):
+    def fat(self, sect: int) -> int:
         idx, offset = divmod(sect, self.num_fat_entries)
 
         try:
@@ -107,10 +114,10 @@ class OLE:
 
         return table[offset]
 
-    def minifat(self, sect):
+    def minifat(self, sect: int) -> int:
         return self._minifat[sect]
 
-    def chain(self, sect, size=None):
+    def chain(self, sect: int, size: int | None = None) -> MiniChain:
         try:
             return self._chaincache[sect]
         except KeyError:
@@ -118,7 +125,7 @@ class OLE:
             self._chaincache[sect] = chain
             return chain
 
-    def minichain(self, sect, size=None):
+    def minichain(self, sect: int, size: int | None = None) -> MiniChain:
         try:
             return self._minichaincache[sect]
         except KeyError:
@@ -128,7 +135,7 @@ class OLE:
 
 
 class DirectoryEntry:
-    def __init__(self, ole, sid):
+    def __init__(self, ole: OLE, sid: int):
         self.ole = ole
         self.sid = sid
 
@@ -152,20 +159,20 @@ class DirectoryEntry:
 
         self._dirlist = {}
 
-    def __repr__(self):
-        return "<DirectoryEntry sid={} name={} type={} size=0x{:x}>".format(self.sid, self.name, self.type, self.size)
+    def __repr__(self) -> str:
+        return f"<DirectoryEntry sid={self.sid} name={self.name} type={self.type} size=0x{self.size:x}>"
 
-    def open(self):
+    def open(self) -> ChainStream:
         return self.chain.open()
 
-    def listdir(self):
+    def listdir(self) -> dict[str, DirectoryEntry]:
         if not self._dirlist:
             for entry in self.walk():
                 self._dirlist[entry.name] = entry
 
         return self._dirlist
 
-    def walk(self):
+    def walk(self) -> Iterator[DirectoryEntry]:
         if self.has_left_sibling:
             yield self.left_sibling
             yield from self.left_sibling.walk()
@@ -181,77 +188,77 @@ class DirectoryEntry:
             yield from self.child.walk()
 
     @property
-    def child(self):
+    def child(self) -> DirectoryEntry | None:
         if not self.has_child:
             return None
         return self.ole.directory(self.entry._sidChild)
 
     @property
-    def left_sibling(self):
+    def left_sibling(self) -> DirectoryEntry | None:
         if not self.has_left_sibling:
             return None
         return self.ole.directory(self.entry._sidLeftSib)
 
     @property
-    def right_sibling(self):
+    def right_sibling(self) -> DirectoryEntry | None:
         if not self.has_right_sibling:
             return None
         return self.ole.directory(self.entry._sidRightSib)
 
     @property
-    def has_child(self):
+    def has_child(self) -> bool:
         return self.entry._sidChild != 0xFFFFFFFF
 
     @property
-    def has_left_sibling(self):
+    def has_left_sibling(self) -> bool:
         return self.entry._sidLeftSib != 0xFFFFFFFF
 
     @property
-    def has_right_sibling(self):
+    def has_right_sibling(self) -> bool:
         return self.entry._sidRightSib != 0xFFFFFFFF
 
     @property
-    def is_minifat(self):
+    def is_minifat(self) -> bool:
         return self.is_stream and self.size < self.ole.mini_cutoff
 
     @property
-    def is_red(self):
+    def is_red(self) -> bool:
         return self.entry._bflags == DECOLOR.DE_RED
 
     @property
-    def is_black(self):
+    def is_black(self) -> bool:
         return self.entry._bflags == DECOLOR.DE_BLACK
 
     @property
-    def is_valid(self):
+    def is_valid(self) -> bool:
         return self.entry._mse == STGTY.STGTY_INVALID
 
     @property
-    def is_stream(self):
+    def is_stream(self) -> bool:
         return self.entry._mse == STGTY.STGTY_STREAM
 
     @property
-    def is_storage(self):
+    def is_storage(self) -> bool:
         return self.entry._mse == STGTY.STGTY_STORAGE
 
 
 class Chain:
-    def __init__(self, ole, sect, size=None):
+    def __init__(self, ole: OLE, sect: int, size: int | None = None):
         self.ole = ole
         self.sect = sect
         self.size = size
         self.chain = [sect]
         self.ended = False
 
-    def __len__(self):
+    def __len__(self) -> int:
         self.fill()
         return len(self.chain)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[int]:
         self.fill()
         return iter(self.chain)
 
-    def __getitem__(self, i):
+    def __getitem__(self, i: int) -> int:
         cur = len(self.chain)
         tail = self.chain[-1]
 
@@ -271,10 +278,10 @@ class Chain:
 
         return self.chain[i]
 
-    def open(self):
+    def open(self) -> ChainStream:
         return ChainStream(self.ole.fh, self, self.ole.sector_size, offset=self.ole.sector_size)
 
-    def fill(self):
+    def fill(self) -> None:
         if self.ended:
             return
 
@@ -283,20 +290,20 @@ class Chain:
         except IndexError:
             pass
 
-    def _lookup(self, sect):
+    def _lookup(self, sect: int) -> int:
         return self.ole.fat(sect)
 
 
 class MiniChain(Chain):
-    def open(self):
+    def open(self) -> ChainStream:
         return ChainStream(self.ole.ministream, self, self.ole.mini_sector_size)
 
-    def _lookup(self, sect):
+    def _lookup(self, sect: int) -> int:
         return self.ole.minifat(sect)
 
 
 class ChainStream(AlignedStream):
-    def __init__(self, stream, chain, sector_size, offset=0):
+    def __init__(self, stream: BinaryIO, chain: Chain, sector_size: int, offset: int = 0):
         self._fh = stream
         self.chain = chain
         self.sector_size = sector_size
@@ -304,7 +311,7 @@ class ChainStream(AlignedStream):
 
         super().__init__(chain.size)
 
-    def _read(self, offset, length):
+    def _read(self, offset: int, length: int) -> bytes:
         r = []
 
         if not self.size and length == -1:
@@ -321,10 +328,7 @@ class ChainStream(AlignedStream):
             except IndexError:
                 break
 
-            if self.size:
-                sectread = min(self.size - offset, sector_size)
-            else:
-                sectread = sector_size
+            sectread = min(self.size - offset, sector_size) if self.size else sector_size
             fileoffset = self.offset + sectnum * sector_size
 
             self._fh.seek(fileoffset)

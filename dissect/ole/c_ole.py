@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dissect.cstruct import cstruct
 
 ole_def = """
@@ -34,7 +36,7 @@ struct StructuredStorageHeader {    // [offset from start in bytes, length in by
     char    _abSig[8];              // [000H,08] 0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1
                                     //           for current version, was 0x0e, 0x11, 0xfc, 0x0d,
                                     //           0xd0, 0xcf, 0x11, 0xe0 on old, beta 2 files
-                                    //           (late ’92) which are also supported by the
+                                    //           (late '92) which are also supported by the
                                     //           reference implementation
     char    _clid[16];              // [008H,16] class id (set with WriteClassStg, retrieved with
                                     //           GetClassFile/ReadClassStg)
